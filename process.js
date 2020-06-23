@@ -61,4 +61,48 @@ router.post(
   }
 );
 
+router.post(
+  "/login",
+  [
+    check("email", "please enter the valid email").isEmail(),
+    check("password", "please enter the valid password").isLength({ min: 8 }),
+  ],
+  async (req, res) => {
+    const chk = validationResult(req);
+    if (!chk.isEmpty()) return res.status(400).json({ errors: chk.array() });
+    const { email, password } = req.body;
+    try {
+      let user = await User.findOne({ email }); //// check weather this email is occupied
+      if (!user) {
+        return res.status(400).json({ message: "user does not exist" });
+      }
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch)
+        return res.status(400).json({ message: "Incorrect Password !" });
+      const payload = {
+        user: {
+          id: user.id,
+        },
+      };
+
+      jwt.sign(
+        payload,
+        "randomString",
+        {
+          expiresIn: 10000,
+        },
+        (err, token) => {
+          if (err) throw err;
+          res.status(200).json({
+            token,
+          });
+        }
+      );
+    } catch (ex) {
+      console.log(ex.message);
+      res.status(500).send("Error in Saving");
+    }
+  }
+);
+
 module.exports = router;
